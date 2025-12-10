@@ -1,0 +1,9 @@
+.env
+/target
+**/*.rs.bk
+**/.DS_Store
+db_data
+node_modules
+.idea
+.vscode
+
