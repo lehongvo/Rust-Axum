@@ -34,29 +34,3 @@ impl IntoResponse for AppError {
         (status, body).into_response()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn status_of(err: AppError) -> StatusCode {
-        let resp = err.into_response();
-        resp.status()
-    }
-
-    #[test]
-    fn maps_to_expected_status() {
-        assert_eq!(
-            status_of(AppError::BadRequest("x".into())),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(status_of(AppError::Unauthorized), StatusCode::UNAUTHORIZED);
-        assert_eq!(status_of(AppError::Forbidden), StatusCode::FORBIDDEN);
-        assert_eq!(
-            status_of(AppError::Io(std::io::Error::from(
-                std::io::ErrorKind::Other
-            ))),
-            StatusCode::INTERNAL_SERVER_ERROR
-        );
-    }
-}

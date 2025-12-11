@@ -1,10 +1,5 @@
 use std::env;
 
-use crate::constants::{
-    DEFAULT_ADMIN_PASS, DEFAULT_ADMIN_USER, DEFAULT_APP_PORT, DEFAULT_DATABASE_URL,
-    DEFAULT_RATE_LIMIT_PER_MIN,
-};
-
 #[derive(Clone, Debug)]
 pub struct AppConfig {
     pub database_url: String,
@@ -18,20 +13,19 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_env() -> Result<Self, String> {
-        // If DATABASE_URL is absent, default to docker-compose service
-        let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.into());
+        let database_url = env::var("DATABASE_URL").map_err(|_| "DATABASE_URL must be set")?;
         let app_port = env::var("APP_PORT")
-            .unwrap_or_else(|_| DEFAULT_APP_PORT.to_string())
+            .unwrap_or_else(|_| "3000".to_string())
             .parse()
-            .unwrap_or(DEFAULT_APP_PORT);
+            .unwrap_or(3000);
         let api_key = env::var("API_KEY").map_err(|_| "API_KEY must be set")?;
         let jwt_secret = env::var("JWT_SECRET").map_err(|_| "JWT_SECRET must be set")?;
-        let admin_user = env::var("ADMIN_USER").unwrap_or_else(|_| DEFAULT_ADMIN_USER.to_string());
-        let admin_pass = env::var("ADMIN_PASS").unwrap_or_else(|_| DEFAULT_ADMIN_PASS.to_string());
+        let admin_user = env::var("ADMIN_USER").unwrap_or_else(|_| "admin".to_string());
+        let admin_pass = env::var("ADMIN_PASS").unwrap_or_else(|_| "password".to_string());
         let rate_limit_per_minute = env::var("RATE_LIMIT_PER_MINUTE")
-            .unwrap_or_else(|_| DEFAULT_RATE_LIMIT_PER_MIN.to_string())
+            .unwrap_or_else(|_| "60".to_string())
             .parse()
-            .unwrap_or(DEFAULT_RATE_LIMIT_PER_MIN);
+            .unwrap_or(60);
 
         Ok(Self {
             database_url,
@@ -48,8 +42,8 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use once_cell::sync::Lazy;
     use std::env;
+    use once_cell::sync::Lazy;
     use std::sync::Mutex as StdMutex;
 
     static ENV_LOCK: Lazy<StdMutex<()>> = Lazy::new(|| StdMutex::new(()));
@@ -80,7 +74,7 @@ mod tests {
 
         let cfg = AppConfig::from_env().unwrap();
         assert_eq!(cfg.database_url, "postgres://app:app@localhost:5432/app");
-        assert_eq!(cfg.app_port, DEFAULT_APP_PORT);
+        assert_eq!(cfg.app_port, 3000);
         assert_eq!(cfg.api_key, "k");
         assert_eq!(cfg.jwt_secret, "secret");
         assert_eq!(cfg.admin_user, "admin");
