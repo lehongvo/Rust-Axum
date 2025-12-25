@@ -5,56 +5,58 @@ use axum::{
     body::Body,
     extract::State,
     middleware,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use uuid::Uuid;
+use utoipa::{ToSchema, OpenApi};
 
 use crate::{
     auth::{login, require_api_key, require_jwt},
     error::AppError,
     models::{history, order, product, user},
+    openapi::ApiDoc,
     state::AppState,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct HealthResponse {
     pub status: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, ToSchema)]
 pub struct NewProduct {
     pub name: String,
     pub price_cents: i64,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, ToSchema)]
 pub struct NewOrder {
     pub user_id: Uuid,
     pub product_id: Uuid,
     pub quantity: i32,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct UserRequest {
     pub email: String,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct UserResponse {
     pub id: Uuid,
     pub email: String,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProductResponse {
     pub id: Uuid,
     pub name: String,
     pub price_cents: i64,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct OrderResponse {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -90,18 +92,38 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/login", post(login))
+        .merge(
+            utoipa_swagger_ui::SwaggerUi::new("/docs")
+                .url("/api-docs/openapi.json", ApiDoc::openapi())
+        )
         .merge(protected)
-        .with_state(state.clone())
+        .with_state(state)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
 }
 
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "api",
+    responses(
+        (status = 200, description = "Health check", body = HealthResponse)
+    )
+)]
 pub async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".to_string(),
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/products",
+    tag = "api",
+    responses(
+        (status = 200, description = "List all products", body = Vec<ProductResponse>)
+    )
+)]
 pub async fn list_products(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ProductResponse>>, AppError> {
@@ -119,6 +141,15 @@ pub async fn list_products(
     Ok(Json(products))
 }
 
+#[utoipa::path(
+    post,
+    path = "/products",
+    tag = "api",
+    request_body = NewProduct,
+    responses(
+        (status = 201, description = "Product created", body = ProductResponse)
+    )
+)]
 pub async fn create_product(
     State(state): State<AppState>,
     Json(payload): Json<NewProduct>,
@@ -146,6 +177,15 @@ pub async fn create_product(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/orders",
+    tag = "api",
+    request_body = NewOrder,
+    responses(
+        (status = 201, description = "Order created", body = OrderResponse)
+    )
+)]
 pub async fn create_order(
     State(state): State<AppState>,
     Json(payload): Json<NewOrder>,
@@ -214,6 +254,14 @@ pub async fn enforce_rate_limit(
     Ok(next.run(req).await)
 }
 
+#[utoipa::path(
+    get,
+    path = "/users",
+    tag = "api",
+    responses(
+        (status = 200, description = "List all users", body = Vec<UserResponse>)
+    )
+)]
 pub async fn list_users(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponse>>, AppError> {
@@ -231,6 +279,15 @@ pub async fn list_users(
     Ok(Json(mapped))
 }
 
+#[utoipa::path(
+    post,
+    path = "/users",
+    tag = "api",
+    request_body = UserRequest,
+    responses(
+        (status = 201, description = "User created", body = UserResponse)
+    )
+)]
 pub async fn create_user(
     State(state): State<AppState>,
     Json(payload): Json<UserRequest>,
@@ -256,6 +313,15 @@ pub async fn create_user(
     ))
 }
 
+#[utoipa::path(
+    put,
+    path = "/users",
+    tag = "api",
+    request_body = UserRequest,
+    responses(
+        (status = 200, description = "User updated", body = UserResponse)
+    )
+)]
 pub async fn update_user(
     State(state): State<AppState>,
     Json(payload): Json<UserRequest>,
@@ -281,6 +347,15 @@ pub async fn update_user(
     }))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/users",
+    tag = "api",
+    request_body = UserRequest,
+    responses(
+        (status = 204, description = "User deleted")
+    )
+)]
 pub async fn delete_user(
     State(state): State<AppState>,
     Json(payload): Json<UserRequest>,
@@ -291,7 +366,7 @@ pub async fn delete_user(
         .await?
         .ok_or_else(|| AppError::BadRequest("user not found".into()))?;
 
-    let mut active: user::ActiveModel = existing.into();
+    let active: user::ActiveModel = existing.into();
     let _ = active.delete(state.db.as_ref()).await?;
 
     Ok(axum::http::StatusCode::NO_CONTENT)

@@ -32,6 +32,16 @@ pub struct LoginResponse {
     pub token: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/login",
+    tag = "api",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 pub async fn login(
     State(state): State<AppState>,
     Json(body): Json<LoginRequest>,

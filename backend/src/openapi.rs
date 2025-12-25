@@ -1,14 +1,17 @@
 use utoipa::OpenApi;
 
-use crate::http::routes::{
-    HealthResponse, NewOrder, NewProduct, OrderResponse, ProductResponse, UserRequest, UserResponse,
+use crate::{
+    auth::{LoginRequest, LoginResponse},
+    http::routes::{
+        HealthResponse, NewOrder, NewProduct, OrderResponse, ProductResponse, UserRequest, UserResponse,
+    },
 };
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         crate::http::routes::health,
-        crate::http::routes::login,
+        crate::auth::login,
         crate::http::routes::list_products,
         crate::http::routes::create_product,
         crate::http::routes::create_order,
@@ -20,6 +23,8 @@ use crate::http::routes::{
     components(
         schemas(
             HealthResponse,
+            LoginRequest,
+            LoginResponse,
             NewProduct,
             ProductResponse,
             NewOrder,

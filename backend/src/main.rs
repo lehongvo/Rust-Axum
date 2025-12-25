@@ -1,12 +1,12 @@
 mod app;
 mod auth;
 mod config;
-mod constants;
 mod error;
 mod http;
 mod middleware;
 mod migrations;
 mod models;
+mod openapi;
 mod state;
 
 use std::net::SocketAddr;
